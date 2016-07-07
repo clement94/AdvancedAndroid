@@ -15,12 +15,18 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import com.cberthelot.advancedandoid.R;
+import com.cberthelot.advancedandoid.dao.DatabaseHelper;
+import com.cberthelot.advancedandoid.entities.SimpleData;
+import com.j256.ormlite.android.apptools.OpenHelperManager;
+import com.j256.ormlite.dao.Dao;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.sql.SQLException;
+import java.util.List;
 
 /**
  * Created by cberthelot on 04/07/2016.
@@ -28,28 +34,58 @@ import java.io.IOException;
 public class DefaultFragment extends Fragment {
     private static final String ARTICLE_ID = "ARTICLE_ID";
 
-    private final static String TAG = "DynFragment1";
+    private final static String TAG = DefaultFragment.class.getName();
 
-    public final static String AGE = "com.cberthelot.advancedandoid.AGE";
+    private DatabaseHelper databaseHelper;
 
     private Button mCall = null;
     private Button mWrite = null;
     private Button mRead = null;
     private File mFile = null;
+    private Button mDatabaseAccess = null;
 
     private String PRENOM_FILENAME = "prenom.txt";
+
+    /**
+     * You'll need this in your class to get the helper from the manager once per class.
+     */
+    private DatabaseHelper getHelper() {
+        if (databaseHelper == null) {
+            databaseHelper = OpenHelperManager.getHelper(getContext(), DatabaseHelper.class);
+        }
+        return databaseHelper;
+    }
+
+    private void doSampleDatabaseStuff() {
+        try {
+            Dao<SimpleData, Integer> simpleDao = getHelper().getSimpleDataDao();
+            List<SimpleData> simpleDatas = simpleDao.queryForAll();
+            Log.i(TAG, "Add following datas to Appender to print them in a layout. " + simpleDatas.toString());
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         Log.i(TAG, "Create view for default fragment : " +  this.getArguments().getInt(ARTICLE_ID));
-
+        //Init database helper
+        getHelper();
         //On crée un fichier qui correspond à l'emplacement exéterieur
         //On écrit dans ce répertoire pour qu'il soit automatiquement supprimé lors de la desinstallation de l'application.
         mFile = new File(Environment.getExternalStorageDirectory().getPath() +
             "/Android/data/" + this.getClass().getPackage().getName() + "/files/" + PRENOM_FILENAME);
 
         View view = inflater.inflate(R.layout.default_fragment, container, false);
+
+        mDatabaseAccess = (Button) view.findViewById(R.id.databaseAccess);
+        mDatabaseAccess.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                doSampleDatabaseStuff();
+            }
+        });
 
         mCall = (Button) view.findViewById(R.id.myCall);
         mCall.setOnClickListener(new View.OnClickListener() {
@@ -142,6 +178,19 @@ public class DefaultFragment extends Fragment {
             }
         });
         return view;
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+
+		/*
+		 * You'll need this in your class to release the helper when done.
+		 */
+        if (databaseHelper != null) {
+            OpenHelperManager.releaseHelper();
+            databaseHelper = null;
+        }
     }
 
     public static DefaultFragment newInstance(int articleId) {
